@@ -1,10 +1,7 @@
-##Mac OS:
+##Mac OS or Linux:
 	./FlaGs.py <options>
 	or Python3 FlaGs.py <options>
 	or (if Python 3 is the default python) Python FlaGs.py <options>
-##Linux:
-	replace FlaGs.py above, with FlaGs_linux.py
-
 
 Without tree (only Biopython neccessary):
 
