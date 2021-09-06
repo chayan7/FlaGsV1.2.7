@@ -55,7 +55,7 @@ print('For more information, please check https://ncbiinsights.ncbi.nlm.nih.gov/
 print('Checking for RefSeq and Genbank summary files and downloading if needed ... \n')
 
 Entrez.tool = 'FlaGs'
-ncbi_time=0.4
+ncbi_time= 0.4
 timeout = 10
 socket.setdefaulttimeout(timeout)
 
