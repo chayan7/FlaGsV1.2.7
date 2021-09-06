@@ -697,6 +697,31 @@ def seqFasLocal(faa,acc): #making fasta file from accession
 				record.description=''
 				return record.format("fasta")
 
+def seqFasLenLocal(faa,acc): #making fasta file from accession
+	if spLocal(faa,acc):
+		faaFile=faa+'.faa.gz'
+		fastaSeq = gzip.open(localDir+faaFile, "rt")
+		for record in SeqIO.parse(fastaSeq, "fasta"):
+			if record.id==acc.split('#')[0]:
+				record.id=acc+'|'+spLocal(faa,acc)#.replace(':','_').replace('[','_').replace(']','_')
+				record.description=''
+				if record.seq:
+					return len(record.seq)
+
+	else:
+		faaFile=faa+'.faa.gz'
+		fastaSeq = gzip.open(localDir+faaFile, "rt")
+		for record in SeqIO.parse(fastaSeq, "fasta"):
+			if record.id==acc.split('#')[0]:
+				if args.redundant:
+					record.id=acc+'|'+remBadChar(record.description.split('[')[-1][:-1])+'_'+remBadChar(faa)#.replace(':','_').replace('[','_').replace(']','_')
+				else:
+					record.id=acc+'|'+remBadChar(record.description.split('[')[-1][:-1])
+				record.description=''
+				if record.seq:
+					return len(record.seq)
+
+
 def redundantCreate(setDict,nums):
 	if nums=='A' or nums=='a':
 		newList=random.sample(setDict,len(setDict))
@@ -1042,8 +1067,9 @@ for query in NqueryDict:
 			AssemFailed=0
 			if item in accnr_list_dict:
 				speciesNameFromOnlineDict[item]=getSpeciesFromGCF(item, accnr_list_dict[item].split('\t')[0])
+				i=1
 				retry = True
-				while (retry):
+				while (retry) and i<6:
 					try:
 						ftpLine=accnr_list_dict[item].split('\t')[1]
 						ftpsplitDir = ftpLine.split('/')[3:]
@@ -1113,6 +1139,7 @@ for query in NqueryDict:
 							AssemFailed+=-2
 							retry = False
 					except:
+						i+=1
 						retry = True
 			else:
 				AssemFailed+=-2
@@ -1176,7 +1203,7 @@ def lenChecker(List):
 	if List:
 		found=0
 		for item in List:
-			if item>7000:
+			if item==True and item>5000:
 				found+=1
 		if found==0:
 			return 'keep'
@@ -1291,7 +1318,7 @@ for query in NqueryDict:
 													seqDict[str(geneProt[LineList[LineList.index(line)-x][1]])]=localNone(seqLocal(item, geneProt[LineList[LineList.index(line)-x][1]]))
 													desDict[geneProt[LineList[LineList.index(line)-x][1]]]=desLocal(item, geneProt[LineList[LineList.index(line)-x][1]])
 													positionDict[geneProt[LineList[LineList.index(line)-x][1]]+'#'+query.split('#')[1]]= ("\t".join(map(str,LineList[LineList.index(line)-x][2:-2])))
-													lengthCheck.append(int(LineList[LineList.index(line)-x][3])-int(LineList[LineList.index(line)-x][2])+1)
+													lengthCheck.append(seqFasLenLocal(item,geneProt[LineList[LineList.index(line)-x][1]]+'#'+query.split('#')[1]))
 													LengthDict[geneProt[LineList[LineList.index(line)-x][1]]+'#'+query.split('#')[1]]= int(LineList[LineList.index(line)-x][3])-int(LineList[LineList.index(line)-x][2])+1
 													udsDict[int(ups(LineList[LineList.index(line)][4])[0]+str(x))]= geneProt[LineList[LineList.index(line)-x][1]]+'#'+query.split('#')[1]+\
 														normalize_strand(LineList[LineList.index(line)][4],LineList[LineList.index(line)-x][4])
@@ -1302,7 +1329,7 @@ for query in NqueryDict:
 													seqDict[str(geneProt[LineList[LineList.index(line)+y][1]])]=localNone(seqLocal(item,geneProt[LineList[LineList.index(line)+y][1]]))
 													desDict[geneProt[LineList[LineList.index(line)+y][1]]]=desLocal(item,geneProt[LineList[LineList.index(line)+y][1]])
 													positionDict[geneProt[LineList[LineList.index(line)+y][1]]+'#'+query.split('#')[1]]= ("\t".join(map(str,LineList[LineList.index(line)+y][2:-2])))
-													lengthCheck.append(int(LineList[LineList.index(line)+y][3])-int(LineList[LineList.index(line)+y][2])+1)
+													lengthCheck.append(seqFasLenLocal(item,geneProt[LineList[LineList.index(line)+y][1]]+'#'+query.split('#')[1]))
 													LengthDict[geneProt[LineList[LineList.index(line)+y][1]]+'#'+query.split('#')[1]]= int(LineList[LineList.index(line)+y][3])-int(LineList[LineList.index(line)+y][2])+1
 													dsDict[int(downs(LineList[LineList.index(line)][4])[0]+str(y))]= geneProt[LineList[LineList.index(line)+y][1]]+'#'+query.split('#')[1]+\
 														normalize_strand(LineList[LineList.index(line)][4],LineList[LineList.index(line)+y][4])
@@ -1325,7 +1352,7 @@ for query in NqueryDict:
 										else:
 											FlankFoundDict[query]='Yes'
 											if args.verbose:
-												print('\t', query.split('#')[0], 'Report: Flanking Gene is longer than 7000 amino acid, thus query is discarded', '\n')
+												print('\t', query.split('#')[0], 'Report: Flanking Gene is longer than 5000 amino acid, thus query is discarded', '\n')
 								else:
 									if query not in FoundDict:
 										FlankFoundDict[query]='No'
@@ -1400,13 +1427,19 @@ def reporter(i1,i2,i3,i4,i5):
 	if i2!='No' and i3=='Changed' and i4!='No' and i5!='No':
 		return i1 + ' is invalid NCBI protein accession therefore converted to identical RefSeq sequence with accession '+ i2 + ' which is reported in Assembly ID '+ i4
 
+#print('accFlankDict',accFlankDict)
+#print('FlankFoundDict',FlankFoundDict)
+#print('reportDict',reportDict)
+
 qcount=0
 discardedGene=0
 with open (args.out_prefix+'_QueryStatus.txt', 'w') as sumOut:
 	print('#Serial', 'Status', sep='\t', file=sumOut)
 	for query in queryList:
+		#print('query',query)
 		qcount+=1
 		for item in reportDict[query[0]]:
+			#print('item',item)
 			if item in FlankFoundDict:
 				if item in accFlankDict:
 					if FlankFoundDict[item]=='Yes':
@@ -1414,8 +1447,11 @@ with open (args.out_prefix+'_QueryStatus.txt', 'w') as sumOut:
 					else:
 						print(str(qcount), reporter(query[0], item.split('#')[0], similarityID(query[0], item.split('#')[0]), ''.join(NqueryDict[item]), 'No'), sep='\t', file=sumOut)
 				else:
-					discardedGene+=1
-					print(str(qcount), query[0]+' is a valid NCBI protein accession but Discarded : Flanking gene with a length more than 7000 amino acid detected.', sep='\t',file=sumOut)
+					if FlankFoundDict[item]=='Yes':
+						discardedGene+=1
+						print(str(qcount), query[0]+' is a valid NCBI protein accession but Discarded : Flanking gene with a length more than 5000 amino acid detected.', sep='\t',file=sumOut)
+					else:
+						print(str(qcount), reporter(query[0], item.split('#')[0], similarityID(query[0], item.split('#')[0]), ''.join(NqueryDict[item]), 'No'), sep='\t', file=sumOut)
 			else:
 				print(str(qcount), reporter(query[0], 'No', 'No', 'No', 'No'), sep='\t', file=sumOut)
 
@@ -1424,8 +1460,11 @@ print('\n'+'>> Flanking Genes found : '+str(flankF)+' out of remaining '+str(ser
 if int(flankF)==0:
 	print('>> No Flanking Genes found, please update your accession list.')
 	sys.exit()
+elif len(accFlankDict)==0:
+	print('>> For every query, flanking gene(s) having a length more than 5000 amino acid detected. Please update your accession list. \n')
+	sys.exit()
 elif int(flankF)==discardedGene:
-	print('>> For every query, flanking gene(s) having a length more than 7000 amino acid detected. Please update your accession list. \n')
+	print('>> For every query, flanking gene(s) having a length more than 5000 amino acid detected. Please update your accession list. \n')
 	sys.exit()
 else:
 	pass
@@ -1434,8 +1473,9 @@ else:
 if args.tree: #Generate fasta file for making phylogenetic Tree
 	with open(args.out_prefix+'_tree.fasta', 'w') as treeOut:
 		for queries in NqueryDict:
-			if queries in treeFastadict:
-				print(treeFastadict[queries], file=treeOut)
+			if queries in accFlankDict:
+				if queries in treeFastadict:
+					print(treeFastadict[queries], file=treeOut)
 
 
 if len(seqDict)!=len(desDict):
@@ -1603,7 +1643,7 @@ color[noColor]='#ffffff'
 color[center]='#000000'
 color[noProt]='#f2f2f2'
 color[noProtP]='#f2f2f3'
-colorDict={} #Assigned family Number from Jackhammer : colorcode
+colorDict={}  #Assigned family Number from Jackhammer : colorcode
 for families in set(familynum):
 	if families == 0:
 		colorDict[families]=str('#ffffff')
